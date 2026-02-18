@@ -7,5 +7,9 @@ requires-python = ">=3.12"
 dependencies = [
     "numpy>=2.4.2",
     "pandas>=3.0.0",
+    "pyarrow>=23.0.1",
     "scikit-learn>=1.8.0",
 ]
+
+[project.scripts]
+extract-features = "video_challenge.cli.extract_features:main"
