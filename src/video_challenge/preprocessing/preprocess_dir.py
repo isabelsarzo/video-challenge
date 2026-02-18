@@ -1,13 +1,13 @@
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 
 from src.video_challenge.preprocessing.compute_acc import process_single_file
 from src.video_challenge.utils.extract_child_segment import parse_segment_name
+from src.video_challenge.utils.check_file_label import get_label
 
 
-def preprocess_directory_to_parquet(input_dir, output_dir, fps=30):
+def preprocess_directory_to_parquet(input_dir, output_dir, fps=30, label_csv_path=None):
     """
     Processes all .npy files, flattens them, and saves a single consolidated Parquet file.
 
@@ -49,13 +49,20 @@ def preprocess_directory_to_parquet(input_dir, output_dir, fps=30):
         # Extract Metadata
         child_id, segment_idx = parse_segment_name(file_path.name)
 
+        if label_csv_path:
+            label = get_label(label_csv_path, f"{file_path.stem}.npy")
+
         # Add metadata columns (broadcasted to all 150 rows)
         df["child_id"] = child_id
         df["segment_id"] = segment_idx
         df["segment_name"] = file_path.stem
 
+        if label_csv_path:
+            df["label"] = label if label_csv_path else None
+
         # Concatenate everything and save
         output_file_path = output_dir / f"{file_path.stem}.parquet"
+        output_file_path.parent.mkdir(parents=True, exist_ok=True)
         df.to_parquet(output_file_path, engine="pyarrow", index=False)
 
 
