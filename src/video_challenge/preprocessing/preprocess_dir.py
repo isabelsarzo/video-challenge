@@ -10,6 +10,14 @@ from src.video_challenge.utils.extract_child_segment import parse_segment_name
 def preprocess_directory_to_parquet(input_dir, output_dir, fps=30):
     """
     Processes all .npy files, flattens them, and saves a single consolidated Parquet file.
+
+    args:
+        input_dir (str): Directory containing the .npy files.
+        output_dir (str): Directory where the output Parquet file will be saved.
+        fps (int): Frames per second of the original video, used to calculate time intervals.
+
+    returns:
+        None: Saves the processed data to a Parquet file.
     """
     input_dir = Path(input_dir)
     output_dir = Path(output_dir)
