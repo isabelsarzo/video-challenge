@@ -1,5 +1,4 @@
 import pandas as pd
-import numpy as np
 from pathlib import Path
 from datetime import datetime
 from video_challenge.utils.metadata import list_parquet_files
@@ -45,7 +44,7 @@ def extract_features(input_dir: Path, output_dir: Path) -> None:
 
     for i, record in enumerate(records_input, start=1):
         print(f"Beginning analysis for record {i}/{len(records_input)}: {record}")
-        data = pd.read_parquet(input_dir / record)
+        data = pd.read_parquet(input_dir / record) # shape: (150, 103)
 
         # Keep track of record name, child, and segment
         if data["segment_name"].nunique() != 1:
@@ -67,38 +66,53 @@ def extract_features(input_dir: Path, output_dir: Path) -> None:
         data = data.drop(
             columns=["segment_name", "child_id", "segment_id", "label"],
             errors="ignore"
-        )
+        ) # (150, 103) --> (150, 99)
 
         data = data.to_numpy()
 
         # Extract features
-        rms = ft.RMS(data)
-        zcr = ft.ZCR(data, threshold=0)
-        mf = ft.medFreq(data, fs=30)
-        pkfreq = ft.peak_freq(data, fs=30)
-        var = ft.variance(data)
-        rp = ft.relative_power(data, fs=30, freqband=[2, 5])
-        meanjk, maxjk, stdjk = ft.jerk(data, fs=30)
-        iqr = ft.IQR(data)
+        features = {}
+        mag = ft.compute_magnitude(data) # ACC signal magnitude
+        
+        # --- temporal ---
+        features["RMS"] = ft.RMS(mag)
+        features["ZCR"] = ft.ZCR(mag, threshold=0)
+        features["VAR"] = ft.variance(mag)
+        features["IQR"] = ft.IQR(mag)
+        features["SampEn"] = ft.sample_entropy(mag)
+        features["Kurt"] = ft.kurtosis(mag)
+        features["Skew"] = ft.skewness(mag)
+        features["BurstDur"] = ft.burst_duration(mag)
+        features["BurstAmp"] = ft.burst_amplitude(mag)
+        features["RiseFall"] = ft.rise_fall_ratio(mag)
+        
+        # jerk
+        meanjk, maxjk, stdjk = ft.jerk(mag, fs=30)
+        features["MEANJK"] = meanjk
+        features["MAXJK"] = maxjk
+        features["STDJK"] = stdjk
 
-        # Build list of feature names
-        features = ["RMS", "ZCR", "MF", "PkF", "VAR", "RP", "MEANJK", "MAXJK", "STDJK", "IQR"]
-        axes = ["X", "Y", "Z"]
+        # axis relationships
+        features["CORR"] = ft.axis_correlation(data)
+        features["TAC"] = ft.tilt_angle_change(data)
 
-        feature_names = []
-        for f in features:
-            for axis in axes:
-                feature_names.extend([f"{f}_{axis}_{lmk}" for lmk in range(33)])
+        # --- spectral ---
+        freqs, psd = ft.compute_psd(mag, fs=30)
+        features["MF"] = ft.medfreq(freqs, psd)
+        features["PkF"] = ft.peak_freq(freqs, psd)
+        features["RP"] = ft.relative_power(freqs, psd, freqband=(2, 5))
+        features["SpEntr"] = ft.spectral_entropy(psd)
+        features["SpCen"] = ft.spectral_centroid(freqs, psd)
+        features["RollOff"] = ft.spectral_rolloff(freqs, psd)
+        features["BPR"] = ft.band_power_ratio(freqs, psd, band1=(0.5, 3), band2=(3, 10))
 
-        # Build features dataframe
-        feature_values_list = [rms, zcr, mf, pkfreq, var, rp, meanjk, maxjk, stdjk, iqr]
-        features_stack = np.hstack([np.array(f).flatten() for f in feature_values_list]).reshape(1, -1)
-        df = pd.DataFrame(features_stack, columns=feature_names)
+        # prepare dataframe
+        df = ft.features_to_dataframe(features, n_channels=data.shape[1])
         df.insert(0, "segment_name", segment_name)
         df.insert(1, "child_id", child_id)
         df.insert(2, "segment_id", segment_id)
 
-        print(f"Shape of features df: {df.shape}")
+        print(f"Shape of features df: {df.shape}") # (1, n_features + 3) = (1, 795)
 
         # Save features
         df.to_parquet(output_dir / f"{segment_name}.parquet", index=False)
