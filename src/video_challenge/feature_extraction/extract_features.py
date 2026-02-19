@@ -6,6 +6,28 @@ from video_challenge.utils.metadata import list_parquet_files
 from video_challenge.feature_extraction import features as ft
 
 def extract_features(input_dir: Path, output_dir: Path) -> None:
+    """
+    Extract temporal and spectral features from ACC data. 
+    Features are extracted from the preprocessed landmarks (position data)
+    obatined from videos previously processed with mediapipe.
+
+    Args:
+        input_dir (Path): 
+            Directory containing the preprocessed data stored as parquet files.
+        output_dir (Path): 
+            Output directory where features will be saved.
+
+    Raises:
+        ValueError: 
+            If multiple segment names (records) are found in a single parquet.
+        ValueError: 
+            If multiple children IDs are found in a single parquet.
+        ValueError: 
+            If multiple segment IDs are found in a single parquet.
+        ValueError: 
+            If segment name does not match file name.
+
+    """
 
     t1 = datetime.now()
 
@@ -35,18 +57,18 @@ def extract_features(input_dir: Path, output_dir: Path) -> None:
         if data["segment_id"].nunique() != 1:
             raise ValueError(f"Parquet {record} contains data from multiple segments.")
         
-        if data["label"].nunique() != 1:
-            raise ValueError(f"Parquet {record} has multiple lables")
-        
         if data["segment_name"].unique().tolist()[0] != Path(record).stem:
             raise ValueError(f"Segment name does not match file name {Path(record).stem}.")
         
         segment_name = data["segment_name"].unique().tolist()[0]
         child_id = data["child_id"].unique().tolist()[0]
         segment_id = data["segment_id"].unique().tolist()[0]
-        label = data["label"].unique().tolist()[0]
 
-        data = data.drop(columns=["segment_name", "child_id", "segment_id", "label"])
+        data = data.drop(
+            columns=["segment_name", "child_id", "segment_id", "label"],
+            errors="ignore"
+        )
+
         data = data.to_numpy()
 
         # Extract features
@@ -75,7 +97,8 @@ def extract_features(input_dir: Path, output_dir: Path) -> None:
         df.insert(0, "segment_name", segment_name)
         df.insert(1, "child_id", child_id)
         df.insert(2, "segment_id", segment_id)
-        df.insert(3, "label", label)
+
+        print(f"Shape of features df: {df.shape}")
 
         # Save features
         df.to_parquet(output_dir / f"{segment_name}.parquet", index=False)
