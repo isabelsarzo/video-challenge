@@ -2,17 +2,17 @@ import pandas as pd
 import numpy as np
 import pickle
 import logging
-import tqdm
+from tqdm import tqdm
 from datetime import datetime
 from pathlib import Path
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import GridSearchCV, StratifiedGroupKFold
 from sklearn.metrics import precision_score, recall_score, f1_score
 from sklearn.feature_selection import SelectKBest, mutual_info_classif
+from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
-from video_challenge.feature_extraction.pull_features import pull_features
-from video_challenge.ML.model import Model
-from video_challenge.ML import config as cfg
+from ..feature_extraction.pull_features import pull_features
+from . import config as cfg
 
 t1 = datetime.now()
 t1_timestamp = datetime.strftime(t1, "%Y%b%d-%H%M%S")
@@ -23,10 +23,12 @@ print(f"Initiated Nested Cross-Validation script on {datetime.strftime(t1, "%d-%
 RESULTS_ROOT = Path("./results")
 RESULTS = RESULTS_ROOT / f"results_run_{t1_timestamp}"
 RESULTS.mkdir(parents=True, exist_ok=False)
+SPLITS = RESULTS / "splits"
+SPLITS.mkdir(parents=True, exist_ok=True)
 print(f"Results will be saved in: {RESULTS}")
 
 # log config
-log_dir = RESULTS / f"log_{t1_timestamp}"
+log_dir = RESULTS / f"log_{t1_timestamp}.log"
 logging.basicConfig(
     filename=log_dir,
     level=logging.INFO,
@@ -81,9 +83,21 @@ for fold, (training, testing) in enumerate(
     train_data, test_data = features.iloc[training, :], features.iloc[testing, :]
 
     # track outer loop splits
+    patients_in_training_set = train_data['child_id'].unique().tolist()
+    patients_in_testing_set = test_data['child_id'].unique().tolist()
     logger.info(f"-- FOLD {fold}/{outercv.get_n_splits()} of outer loop:")
-    logger.info(f"--- Patients in training set: {train_data['child_id'].unique().tolist()}")
-    logger.info(f"--- Patients in testing set: {test_data['child_id'].unique().tolist()}")
+    logger.info(f"--- Patients in training set: {patients_in_training_set}")
+    logger.info(f"--------- n = {len(patients_in_training_set)}")
+    logger.info(f"--- Patients in testing set: {patients_in_testing_set}")
+    logger.info(f"--------- n = {len(patients_in_testing_set)}")
+
+    # Save outer fold patients
+    pd.DataFrame(patients_in_training_set, columns=["child_id"]).to_csv(
+        SPLITS / f"fold{fold}_outer_training.csv", index=False
+    )
+    pd.DataFrame(patients_in_testing_set, columns=["child_id"]).to_csv(
+        SPLITS / f"fold{fold}_outer_testing.csv", index=False
+    )
 
     # track inner loop splits
     for i, (subtrain, val) in enumerate(
@@ -93,24 +107,47 @@ for fold, (training, testing) in enumerate(
                 groups = train_data['child_id']
             ),
             start=1
-        ):
+    ):
         subtrain_patients = list(set(train_data['child_id'].values[subtrain]))
         val_patients = list(set(train_data['child_id'].values[val]))
         logger.info(f"----- FOLD {i}/{innercv.get_n_splits()} of inner loop:")
         logger.info(f"------ Patients in sub-training set: {subtrain_patients}")
+        logger.info(f"--------- n = {len(subtrain_patients)}")
         logger.info(f"------ Patients in validation set: {val_patients}")
+        logger.info(f"--------- n = {len(val_patients)}")
+
+        # Save inner fold patients
+        pd.DataFrame(subtrain_patients, columns=["child_id"]).to_csv(
+            SPLITS / f"fold{fold}_inner{i}_training.csv", index=False
+        )
+        pd.DataFrame(val_patients, columns=["child_id"]).to_csv(
+            SPLITS / f"fold{fold}_inner{i}_eval.csv", index=False
+        )
+
+        # get subtrain labels
+        y_subtrain = train_data['label'].iloc[subtrain]
+
+        # count positives and negatives
+        n_pos = (y_subtrain == 1).sum()
+        n_neg = (y_subtrain == 0).sum()
+
+        print(f"------ Positive samples in sub-training set: {n_pos}")
+        print(f"------ Negative samples in sub-training set: {n_neg}")
+
+        y_val = train_data['label'].iloc[val]
+        n_pos_val = (y_val == 1).sum()
+        n_neg_val = (y_val == 0).sum()
+
+        print(f"------ Positive samples in validation set: {n_pos_val}")
+        print(f"------ Negative samples in validation set: {n_neg_val}")
 
     # build pipeline
     pipeline = Pipeline([
+        ("imputer", SimpleImputer(strategy="mean")),
         ("scaler", MinMaxScaler()),
         ("feature_selection", SelectKBest(score_func=mutual_info_classif)),
-        ('model', Model(
-            classifier = model
-        ))
+        ("model", model)
     ])
-
-    # safety check
-    print(f"Safety check: {pipeline.get_params().keys()}")
 
     # execute grid search
     logger.info(f"Executing grid search for model: {clf_name}")
@@ -124,7 +161,7 @@ for fold, (training, testing) in enumerate(
         verbose=2
     )
 
-    x_train = train_data.drop(colums=["segment_name", "segment_id", "child_id", "label"])
+    x_train = train_data.drop(columns=["segment_name", "segment_id", "child_id", "label"])
     y_train = train_data["label"].to_numpy()
 
     x_test = test_data.drop(columns=["segment_name", "segment_id", "child_id", "label"])

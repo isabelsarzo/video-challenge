@@ -9,19 +9,35 @@ ncv = {
 
 clf = "XGBoost"
 
+# XGBoost_hyperparam_grid = {  
+#     'feature_selection__k': [50, 100, 150, 200], # number of features to select
+#     'model__classifier__max_depth': [6, 8, 10],
+#     'model__classifier__min_child_weight': [3, 5, 7, 9],
+#     'model__classifier__learning_rate': [0.1],  # 0.3 (default), 0.1
+#     'model__classifier__max_delta_step': [1],  # default is 0 (balanced datasets), 1-10 helps with unbalanced datasets
+#     'model__classifier__gamma': [1],  # 0 (default), 1 # 0.5, 1
+#     'model__classifier__reg_lambda': [1], # L2 reg, default is 1
+#     'model__classifier__reg_alpha': [0.5], # L1 reg, default is 0 # 0.1, 0.5, 1
+#     'model__classifier__booster': ['gbtree'],  # default is gbtree
+#     'model__classifier__n_jobs': [32], # same as challenge
+#     'model__classifier__verbosity': [1],   # 0 for silent, 1 for warning (default), 2 for info, 3 for debug
+#     'model__classifier__missing': [np.nan]
+# }
+
 XGBoost_hyperparam_grid = {  
-    'feature_selection__k': [50, 100, 150, 200], # number of features to select
-    'model__classifier__max_depth': [6, 8, 10],
-    'model__classifier__min_child_weight': [3, 5, 7, 9],
-    'model__classifier__learning_rate': [0.1],  # 0.3 (default), 0.1
-    'model__classifier__max_delta_step': [1],  # default is 0 (balanced datasets), 1-10 helps with unbalanced datasets
-    'model__classifier__gamma': [1],  # 0 (default), 1 # 0.5, 1
-    'model__classifier__reg_lambda': [1], # L2 reg, default is 1
-    'model__classifier__reg_alpha': [0.5], # L1 reg, default is 0 # 0.1, 0.5, 1
-    'model__classifier__booster': ['gbtree'],  # default is gbtree
-    'model__classifier__n_jobs': [32], # same as challenge
-    'model__classifier__verbosity': [1],   # 0 for silent, 1 for warning (default), 2 for info, 3 for debug
-    'model__classifier__missing': [np.nan]
+    'feature_selection__k': [50, 100, 150], # number of features to select
+    'model__max_depth': [6, 8, 10],
+    'model__min_child_weight': [3, 5, 7, 9],
+    'model__learning_rate': [0.1],  # 0.3 (default), 0.1
+    'model__max_delta_step': [0, 1],  # default is 0 (balanced datasets), 1-10 helps with unbalanced datasets
+    'model__gamma': [1],  # 0 (default), 1 # 0.5, 1
+    'model__reg_lambda': [1], # L2 reg, default is 1
+    'model__reg_alpha': [0, 0.1, 0.5], # L1 reg, default is 0 # 0.1, 0.5, 1
+    'model__booster': ['gbtree'],  # default is gbtree
+    'model__n_jobs': [32], # same as challenge
+    'model__verbosity': [1],   # 0 for silent, 1 for warning (default), 2 for info, 3 for debug
+    'model__missing': [np.nan],
+    'model__scale_pos_weight': [2.4]
 }
 
 ####################################### DO NOT EDIT BELOW ######################################
