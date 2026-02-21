@@ -4,7 +4,6 @@ import pickle
 import logging
 from tqdm import tqdm
 from datetime import datetime
-from pathlib import Path
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import GridSearchCV, StratifiedGroupKFold
 from sklearn.metrics import precision_score, recall_score, f1_score
@@ -20,8 +19,7 @@ t1_timestamp = datetime.strftime(t1, "%Y%b%d-%H%M%S")
 print(f"Initiated Nested Cross-Validation script on {datetime.strftime(t1, "%d-%b-%Y %H:%M:%S")}")
 
 # results dir config
-RESULTS_ROOT = Path("./results")
-RESULTS = RESULTS_ROOT / f"results_run_{t1_timestamp}"
+RESULTS = cfg.paths["results_root"] / f"results_run_{t1_timestamp}"
 RESULTS.mkdir(parents=True, exist_ok=False)
 SPLITS = RESULTS / "splits"
 SPLITS.mkdir(parents=True, exist_ok=True)
@@ -40,8 +38,8 @@ logger.info(f"NCV started on: {datetime.strftime(t1, "%d-%b-%Y %H:%M:%S")}")
 # load dataset
 print("Loading dataset...")
 features, desc = pull_features(
-    dir=Path("./dataset/features"),
-    labels=Path("./dataset/data/train_data.csv")
+    dir=cfg.paths["features_dir"],
+    labels=cfg.paths["labels_file"]
 )
 
 print(f"Dataset shape: {features.shape}")

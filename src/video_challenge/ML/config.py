@@ -1,6 +1,13 @@
 import xgboost as xgb
 import numpy as np
+from pathlib import Path
 from sklearn.metrics import recall_score, precision_score, f1_score, make_scorer
+
+paths = {
+    "results_root": Path("./results"),
+    "features_dir": Path("./dataset/features"),
+    "labels_file": Path("./dataset/data/train_data.csv")
+}
 
 ncv = {
     "n_outer": 5,
@@ -47,7 +54,6 @@ scoring = {
     'recall': make_scorer(recall_score, zero_division=np.nan),
     'f1-score': make_scorer(f1_score, zero_division=0),
 }
-
 
 if clf == "XGBoost":
     clf_instance = xgb.XGBClassifier()
