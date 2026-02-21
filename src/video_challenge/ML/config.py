@@ -4,6 +4,8 @@ import xgboost as xgb
 import numpy as np
 from sklearn.metrics import recall_score, precision_score, f1_score, make_scorer
 
+project_name = "video-challenge"
+
 paths = {
     "results_root": Path("./results"),
     "features_dir": Path("./dataset/features"),

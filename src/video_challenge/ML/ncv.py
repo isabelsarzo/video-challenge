@@ -4,7 +4,7 @@ import pickle
 import logging
 from tqdm import tqdm
 from datetime import datetime
-
+import wandb
 import optuna
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import StratifiedGroupKFold
@@ -13,10 +13,11 @@ from sklearn.feature_selection import SelectKBest, mutual_info_classif
 from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
 import xgboost as xgb
-from video_challenge.ML.optuna_objective import objective
+from video_challenge.ML.optuna_objective import objective, reset_wandb_env
 
 from ..feature_extraction.pull_features import pull_features
 from . import config as cfg
+
 
 t1 = datetime.now()
 t1_timestamp = datetime.strftime(t1, "%Y%b%d-%H%M%S")
@@ -24,6 +25,8 @@ t1_timestamp = datetime.strftime(t1, "%Y%b%d-%H%M%S")
 print(
     f"Initiated Nested Cross-Validation script on {datetime.strftime(t1, '%d-%b-%Y %H:%M:%S')}"
 )
+
+wandb.login()
 
 # results dir config
 RESULTS = cfg.paths["results_root"] / f"results_run_{t1_timestamp}"
@@ -160,13 +163,25 @@ for fold, (training, testing) in enumerate(
             y_train,
             train_data["child_id"].values,
             innercv,
+            fold,
+            wandb_dir=RESULTS,
         ),
         n_trials=500,
     )
 
-    # Gte best hyperparms
+    # Get best hyperparms
     best_params = study.best_params
-
+    reset_wandb_env()
+    run_name = f"outer_{fold}"
+    group_name_wandb = "outer_loop_models"
+    wandb.init(
+        project=cfg.project_name,
+        name=run_name,
+        config=best_params,
+        reinit=True,
+        group=group_name_wandb,
+        dir=RESULTS,
+    )
     # Get best model with best hyperparams
     best_model = Pipeline(
         [
@@ -197,7 +212,15 @@ for fold, (training, testing) in enumerate(
         ]
     )
 
-    best_model.fit(x_train, y_train)
+    best_model.fit(
+        x_train,
+        y_train,
+        model__eval_set=[(x_test, y_true)],
+        model__early_stopping_rounds=50,
+        model__callbacks=[
+            wandb.xgboost.WandbCallback(),
+        ],
+    )
 
     # get best model and save it
     model_path = RESULTS / f"pipeline_fold{fold}.pkl"
@@ -219,6 +242,15 @@ for fold, (training, testing) in enumerate(
     best_params = study.best_params
     best_params = pd.DataFrame([best_params])
     best_params.to_csv(RESULTS / f"best_params_fold{fold}.csv", index=False)
+
+    wandb.log(
+        {
+            "Recall": outercv_scores["Recall"][-1],
+            "Precision": outercv_scores["Precision"][-1],
+            "F1-score": outercv_scores["F1-score"][-1],
+        }
+    )
+    wandb.finish()
 
 # save outer scores
 outercv_scores = pd.DataFrame(outercv_scores)
