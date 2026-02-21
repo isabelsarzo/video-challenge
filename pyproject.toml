@@ -7,10 +7,12 @@ requires-python = ">=3.12"
 dependencies = [
     "duckdb>=1.4.4",
     "numpy>=2.4.2",
+    "optuna>=4.7.0",
     "pandas>=3.0.0",
     "pyarrow>=23.0.1",
     "scikit-learn>=1.8.0",
     "tqdm>=4.67.3",
+    "wandb>=0.25.0",
     "xgboost==3.2.0",
 ]
 
