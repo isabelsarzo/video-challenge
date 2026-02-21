@@ -13,7 +13,7 @@ from sklearn.feature_selection import SelectKBest, mutual_info_classif
 from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
 import xgboost as xgb
-from video_challenge.ML.optuna_objective import objective, reset_wandb_env
+from .optuna_objective import objective, reset_wandb_env
 
 from ..feature_extraction.pull_features import pull_features
 from . import config as cfg
@@ -33,7 +33,13 @@ RESULTS = cfg.paths["results_root"] / f"results_run_{t1_timestamp}"
 RESULTS.mkdir(parents=True, exist_ok=False)
 SPLITS = RESULTS / "splits"
 SPLITS.mkdir(parents=True, exist_ok=True)
+OPTUNA_DIR = RESULTS / "optuna"
+OPTUNA_DIR.mkdir(parents=True, exist_ok=True)
+optuna_db_file = OPTUNA_DIR / "optuna.db"
+optuna_storage = f"sqlite:///{optuna_db_file}"
 print(f"Results will be saved in: {RESULTS}")
+
+# optuna_storage = f"{cfg.paths['optuna_storage']}/{RESULTS}/optuna/optuna.db"
 
 # log config
 log_dir = RESULTS / f"log_{t1_timestamp}.log"
@@ -146,7 +152,7 @@ for fold, (training, testing) in enumerate(
     # Training for inner loop
     study = optuna.create_study(
         study_name=f"outer_{fold}",
-        storage=cfg.paths["optuna_storage"],
+        storage=optuna_storage,
         load_if_exists=True,
         direction="maximize",
         sampler=optuna.samplers.TPESampler(seed=18),
@@ -183,7 +189,7 @@ for fold, (training, testing) in enumerate(
         dir=RESULTS,
     )
     # Get best model with best hyperparams
-    best_model = Pipeline(
+    preprocessor = Pipeline(
         [
             ("imputer", SimpleImputer(strategy="mean")),
             ("scaler", MinMaxScaler()),
@@ -194,41 +200,44 @@ for fold, (training, testing) in enumerate(
                     k=best_params.pop("k"),
                 ),
             ),
-            (
-                "model",
-                xgb.XGBClassifier(
-                    **best_params,
-                    n_estimators=study.best_trial.user_attrs.get(
-                        "best_iteration", 300
-                    ),  # safe fallback
-                    objective="binary:logistic",
-                    eval_metric="logloss",
-                    tree_method="hist",
-                    n_jobs=32,
-                    verbosity=1,
-                    random_state=18,
-                ),
-            ),
         ]
     )
 
-    best_model.fit(
-        x_train,
-        y_train,
-        model__eval_set=[(x_test, y_true)],
-        model__early_stopping_rounds=50,
-        model__callbacks=[
+    X_train_transformed = preprocessor.fit_transform(x_train, y_train)
+    X_test_transformed = preprocessor.transform(x_test)
+
+    best_model = xgb.XGBClassifier(
+        **best_params,
+        n_estimators=study.best_trial.user_attrs.get(
+            "best_iteration", 300
+        ),  # safe fallback
+        objective="binary:logistic",
+        eval_metric="logloss",
+        tree_method="hist",
+        n_jobs=32,
+        verbosity=1,
+        random_state=18,
+        early_stopping_rounds=50,
+        callbacks=[
             wandb.xgboost.WandbCallback(),
         ],
     )
 
+    best_model.fit(
+        X_train_transformed,
+        y_train,
+        eval_set=[(X_test_transformed, y_true)],
+    )
+
+    pipeline = Pipeline(steps=preprocessor.steps + [("model", best_model)])
+
     # get best model and save it
     model_path = RESULTS / f"pipeline_fold{fold}.pkl"
     with open(model_path, "wb") as f:
-        pickle.dump(best_model, f)
+        pickle.dump(pipeline, f)
 
     # get best model predictions on testing set
-    y_pred = best_model.predict(x_test)
+    y_pred = best_model.predict(X_test_transformed)
 
     # compute and store fold performance
     outercv_scores["Fold"].append(fold)

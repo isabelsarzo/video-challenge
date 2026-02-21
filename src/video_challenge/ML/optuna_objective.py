@@ -48,7 +48,7 @@ def objective(trial, X, y, groups, cv, outer_fold, wandb_dir):
         X_tr, X_val = X.iloc[train_idx], X.iloc[val_idx]
         y_tr, y_val = y[train_idx], y[val_idx]
 
-        pipeline = Pipeline(
+        preprocessor = Pipeline(
             [
                 ("imputer", SimpleImputer(strategy="mean")),
                 ("scaler", MinMaxScaler()),
@@ -59,21 +59,11 @@ def objective(trial, X, y, groups, cv, outer_fold, wandb_dir):
                         k=trial.suggest_int("k", 50, 200, step=25),
                     ),
                 ),
-                (
-                    "model",
-                    xgb.XGBClassifier(
-                        **params,
-                        n_estimators=1000,  # IMPORTANT
-                        objective="binary:logistic",
-                        eval_metric="logloss",
-                        tree_method="hist",
-                        n_jobs=32,
-                        verbosity=0,
-                        random_state=18,
-                    ),
-                ),
             ]
         )
+
+        X_tr_transformed = preprocessor.fit_transform(X_tr, y_tr)
+        X_val_transformed = preprocessor.transform(X_val)
 
         reset_wandb_env()
         # Initialize W&B run
@@ -85,19 +75,29 @@ def objective(trial, X, y, groups, cv, outer_fold, wandb_dir):
             group=group_name_wandb,
             dir=wandb_dir,
         )
-
-        pipeline.fit(
-            X_tr,
-            y_tr,
-            model__eval_set=[(X_val, y_val)],
-            model__early_stopping_rounds=50,
-            model__callbacks=[
+        model = xgb.XGBClassifier(
+            **params,
+            n_estimators=1000,  # IMPORTANT
+            objective="binary:logistic",
+            eval_metric="logloss",
+            tree_method="hist",
+            n_jobs=32,
+            verbosity=0,
+            random_state=18,
+            early_stopping_rounds=50,
+            callbacks=[
                 XGBoostPruningCallback(trial, "validation_0-logloss"),
                 wandb.xgboost.WandbCallback(),
             ],
         )
 
-        preds = pipeline.predict(X_val)
+        model.fit(
+            X_tr_transformed,
+            y_tr,
+            eval_set=[(X_val_transformed, y_val)],
+        )
+
+        preds = model.predict(X_val_transformed)
         f1_scores.append(f1_score(y_val, preds, zero_division=0))
 
         wandb.log({"f1_score": f1_scores[-1]})
