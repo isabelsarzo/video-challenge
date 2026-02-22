@@ -39,8 +39,6 @@ optuna_db_file = OPTUNA_DIR / "optuna.db"
 optuna_storage = f"sqlite:///{optuna_db_file}"
 print(f"Results will be saved in: {RESULTS}")
 
-# optuna_storage = f"{cfg.paths['optuna_storage']}/{RESULTS}/optuna/optuna.db"
-
 # log config
 log_dir = RESULTS / f"log_{t1_timestamp}.log"
 logging.basicConfig(filename=log_dir, level=logging.INFO, format="%(message)s")
@@ -172,7 +170,7 @@ for fold, (training, testing) in enumerate(
             fold,
             wandb_dir=RESULTS,
         ),
-        n_trials=500,
+        n_trials=100, # number of hp configs
     )
 
     # Get best hyperparms

@@ -6,12 +6,11 @@ project_name = "video-challenge"
 
 paths = {
     "results_root": Path("./results"),
-    "features_dir": Path("./dataset/features"),
+    "features_dir": Path("./dataset/features_AXES-MAG"),
     "labels_file": Path("./dataset/data/train_data.csv"),
-    # "optuna_storage": "sqlite:////home/danielgalindo/projects/video-challenge",
 }
 
-ncv = {"n_outer": 5, "n_inner": 5}
+ncv = {"n_outer": 3, "n_inner": 4}
 
 scoring = {
     "precision": make_scorer(precision_score, zero_division=np.nan),

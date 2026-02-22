@@ -77,7 +77,7 @@ def objective(trial, X, y, groups, cv, outer_fold, wandb_dir):
         )
         model = xgb.XGBClassifier(
             **params,
-            n_estimators=1000,  # IMPORTANT
+            n_estimators=1000,  # i.e., number of epochs
             objective="binary:logistic",
             eval_metric="logloss",
             tree_method="hist",
