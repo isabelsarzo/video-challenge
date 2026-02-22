@@ -4,7 +4,7 @@ import numpy as np
 import wandb
 import optuna
 from sklearn.preprocessing import MinMaxScaler
-from sklearn.metrics import f1_score
+from sklearn.metrics import f1_score, recall_score, precision_score
 from sklearn.feature_selection import SelectKBest, mutual_info_classif
 from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
@@ -67,9 +67,11 @@ def objective(trial, X, y, groups, cv, wandb_dir, model_type="xgboost"):
     k_features = trial.suggest_int("k", 50, 200, step=25)
 
     # Global decision threshold tuned by Optuna
-    decision_threshold = trial.suggest_float("decision_threshold", 0.35, 0.65)
+    decision_threshold = trial.suggest_float("decision_threshold", 0.3, 0.7)
 
     f1_scores = []
+    recall_scores = []
+    precision_scores = []
 
     # -------------------------
     # Cross-validation loop
@@ -110,6 +112,9 @@ def objective(trial, X, y, groups, cv, wandb_dir, model_type="xgboost"):
 
         if model_type == "xgboost":
 
+            neg, pos = np.bincount(y_tr)
+            spw = neg/pos
+
             model = xgb.XGBClassifier(
                 **params,
                 n_estimators=1000,
@@ -119,6 +124,7 @@ def objective(trial, X, y, groups, cv, wandb_dir, model_type="xgboost"):
                 n_jobs=32,
                 verbosity=1,
                 random_state=18,
+                scale_pos_weight=spw,
                 early_stopping_rounds=50,
                 callbacks=[
                     XGBoostPruningCallback(trial, "validation_0-logloss"),
@@ -165,9 +171,18 @@ def objective(trial, X, y, groups, cv, wandb_dir, model_type="xgboost"):
         f1 = f1_score(y_val, preds, zero_division=0)
         f1_scores.append(f1)
 
+        recall = recall_score(y_val, preds, zero_division=np.nan)
+        recall_scores.append(recall)
+        precision = precision_score(y_val, preds, zero_division=np.nan)
+        precision_scores.append(precision)
+
         wandb.log({
             "f1_score": f1,
             "mean_f1_so_far": np.mean(f1_scores),
+            "recall": recall,
+            "mean_recall_so_far": np.nanmean(recall_scores),
+            "precision": precision,
+            "mean_precision_so_far": np.nanmean(precision_scores),
             "threshold": decision_threshold,
             "fold": fold
         })
