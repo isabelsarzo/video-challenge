@@ -134,6 +134,7 @@ y_true = test_data["label"].to_numpy()
 
 # execute optuna optimization for cv
 logger.info("Executing Optuna optimization for CV...")
+logger.info(f"Using model: {cfg.MODEL_TYPE}")
 
 study = optuna.create_study(
     study_name="CV",
@@ -189,6 +190,10 @@ X_train_transformed = preprocessor.fit_transform(x_train, y_train)
 X_test_transformed = preprocessor.transform(x_test)
 
 if cfg.MODEL_TYPE == "xgboost":
+
+    neg, pos = np.bincount(y_train)
+    spw = neg/pos
+    
     best_model = xgb.XGBClassifier(
         **best_params,
         n_estimators=1000,
@@ -198,6 +203,7 @@ if cfg.MODEL_TYPE == "xgboost":
         n_jobs=32,
         verbosity=1,
         random_state=18,
+        scale_pos_weight=spw,
         early_stopping_rounds=50,
         callbacks=[
             wandb.xgboost.WandbCallback(),
@@ -211,15 +217,21 @@ if cfg.MODEL_TYPE == "xgboost":
     )
 
 elif cfg.MODEL_TYPE == "tabnet":
-    if "lr" in best_params:
-        best_params["optimizer_params"] = dict(lr=best_params.pop("lr"))
-    if "n_da" in best_params:
-        n_da = best_params.pop("n_da")
-        best_params["n_d"] = n_da
-        best_params["n_a"] = n_da
-    
+    # Remove keys not accepted by TabNet
+    tabnet_params = best_params.copy()
+    for key in ["decision_threshold", "k"]:
+        tabnet_params.pop(key, None)
+
+    # Adjust TabNet-specific params
+    if "lr" in tabnet_params:
+        tabnet_params["optimizer_params"] = dict(lr=tabnet_params.pop("lr"))
+    if "n_da" in tabnet_params:
+        n_da = tabnet_params.pop("n_da")
+        tabnet_params["n_d"] = n_da
+        tabnet_params["n_a"] = n_da
+
     best_model = TabNetClassifier(
-        **best_params,
+        **tabnet_params,
         seed=18,
         verbose=0,
         device_name='cuda' if torch.cuda.is_available() else 'cpu'
