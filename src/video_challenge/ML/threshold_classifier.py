@@ -1,10 +1,10 @@
 class ThresholdedClassifier:
-    def init(self, model, threshold=0.5):
+    def __init__(self, model, threshold=0.5):
         self.model = model
         self.threshold = threshold
 
-    def fit(self, X, y, kwargs):
-        self.model.fit(X, y, kwargs)
+    def fit(self, X, y, **kwargs):
+        self.model.fit(X, y, **kwargs)
         return self
 
     def predict_proba(self, X):

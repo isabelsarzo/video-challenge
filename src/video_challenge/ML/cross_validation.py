@@ -18,6 +18,7 @@ from .optuna_objective import objective, reset_wandb_env
 
 from ..feature_extraction.pull_features import pull_features
 from . import config as cfg
+from .threshold_classifier import ThresholdedClassifier
 
 
 t1 = datetime.now()
@@ -156,7 +157,7 @@ study.optimize(
         wandb_dir=RESULTS,
         model_type=cfg.MODEL_TYPE
     ),
-    n_trials=100, # number of hp configs
+    n_trials=cfg.n_trials, # number of hp configs
 )
 
 # Get best hyperparms
@@ -190,9 +191,7 @@ X_test_transformed = preprocessor.transform(x_test)
 if cfg.MODEL_TYPE == "xgboost":
     best_model = xgb.XGBClassifier(
         **best_params,
-        n_estimators=study.best_trial.user_attrs.get(
-            "best_iteration", 300
-        ),  # safe fallback
+        n_estimators=1000,
         objective="binary:logistic",
         eval_metric="logloss",
         tree_method="hist",
@@ -222,18 +221,27 @@ elif cfg.MODEL_TYPE == "tabnet":
     best_model = TabNetClassifier(
         **best_params,
         seed=18,
+        verbose=0,
         device_name='cuda' if torch.cuda.is_available() else 'cpu'
     )
 
     best_model.fit(
-        X_train=X_train_transformed, y_train=y_train,
+        X_train=X_train_transformed, 
+        y_train=y_train,
         eval_set=[(X_test_transformed, y_true)],
-        eval_name=['test'], eval_metric=['logloss'],
-        max_epochs=200, patience=30,
-        batch_size=256, virtual_batch_size=128
+        eval_name=['test'], 
+        eval_metric=['logloss'],
+        max_epochs=300, 
+        patience=40,
+        batch_size=256, 
+        virtual_batch_size=64,
+        weights=1,
+        drop_last=False
     )
 
-pipeline = Pipeline(steps=preprocessor.steps + [("model", best_model)])
+best_threshold = study.best_trial.params.get("decision_threshold", 0.5)
+thresholded_model = ThresholdedClassifier(best_model, threshold=best_threshold)
+pipeline = Pipeline(steps=preprocessor.steps + [("model", thresholded_model)])
 
 # get best model and save it
 model_path = RESULTS / f"CV_pipeline_{cfg.MODEL_TYPE}.pkl"
@@ -241,7 +249,7 @@ with open(model_path, "wb") as f:
     pickle.dump(pipeline, f)
 
 # get best model predictions on testing set
-y_pred = best_model.predict(X_test_transformed)
+y_pred = thresholded_model.predict(X_test_transformed)
 
 # -------- compute scores --------
 recall = recall_score(y_true, y_pred, zero_division=np.nan)
@@ -257,6 +265,7 @@ scores = {
     "Recall": recall,
     "Precision": precision,
     "F1-score": f1score,
+    "threshold": best_threshold
 }
 
 wandb.log(scores)
