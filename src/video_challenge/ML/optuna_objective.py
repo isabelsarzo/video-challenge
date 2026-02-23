@@ -32,8 +32,8 @@ def objective(trial, X, y, groups, cv, wandb_dir, model_type="xgboost"):
 
     if model_type == "xgboost":
         params = {
-            "max_depth": trial.suggest_int("max_depth", 3, 8),
-            "min_child_weight": trial.suggest_float("min_child_weight", 1.0, 8.0, log=True),
+            "max_depth": trial.suggest_int("max_depth", 4, 10),
+            "min_child_weight": trial.suggest_int("min_child_weight", 3, 15),
             "learning_rate": trial.suggest_float("learning_rate", 1e-3, 0.2, log=True),
             "gamma": trial.suggest_float("gamma", 1e-8, 3.0, log=True),
             "reg_alpha": trial.suggest_float("reg_alpha", 1e-8, 1.0, log=True),
@@ -43,7 +43,7 @@ def objective(trial, X, y, groups, cv, wandb_dir, model_type="xgboost"):
 
     elif model_type == "tabnet":
 
-        n_da = trial.suggest_categorical("n_da", [8, 16, 24])  # smaller upper bound for stability
+        n_da = trial.suggest_categorical("n_da", [8, 16, 24])
 
         params = {
             "n_d": n_da,
@@ -54,7 +54,7 @@ def objective(trial, X, y, groups, cv, wandb_dir, model_type="xgboost"):
             "n_shared": trial.suggest_int("n_shared", 1, 3),
             "lambda_sparse": trial.suggest_float("lambda_sparse", 1e-4, 1e-3, log=True),
             "optimizer_params": dict(
-                lr=trial.suggest_float("lr", 5e-4, 5e-3, log=True)  # safer LR upper bound
+                lr=trial.suggest_float("lr", 5e-4, 5e-3, log=True)
             ),
             "optimizer_fn": torch.optim.AdamW,
             "mask_type": trial.suggest_categorical("mask_type", ["entmax", "sparsemax"]),
@@ -67,7 +67,7 @@ def objective(trial, X, y, groups, cv, wandb_dir, model_type="xgboost"):
     k_features = trial.suggest_int("k", 50, 200, step=25)
 
     # Global decision threshold tuned by Optuna
-    decision_threshold = trial.suggest_float("decision_threshold", 0.3, 0.7)
+    decision_threshold = trial.suggest_float("decision_threshold", 0.5, 0.7)
 
     f1_scores = []
     recall_scores = []
