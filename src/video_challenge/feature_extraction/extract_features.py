@@ -114,7 +114,7 @@ def extract_features(input_dir: Path, output_dir: Path) -> None:
         df.insert(1, "child_id", child_id)
         df.insert(2, "segment_id", segment_id)
 
-        print(f"Shape of features df: {df.shape}") # (1, n_features + 3) = (1, 795)
+        print(f"Shape of features df: {df.shape}") # (1, n_features + 3) = (1, 2775)
 
         # Save features
         df.to_parquet(output_dir / f"{segment_name}.parquet", index=False)
