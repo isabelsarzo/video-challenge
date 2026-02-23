@@ -1,0 +1,37 @@
+# build the images with `docker compose build`
+
+services:
+  xgboost:
+    image: video-challenge:xgboost
+    build:
+      context: .
+      dockerfile: xgboost.Dockerfile
+      ulimits:
+        # fixes some issues when building
+        nofile:
+          soft: 10000
+          hard: 10000
+    container_name: video-challenge-xgboost
+    volumes:
+      - ./data:/data
+      - ./output:/output
+    environment:
+      - INPUT=path/to/input/data
+      - OUTPUT=predictions.csv
+  tabnet1:
+    image: video-challenge:tabnet
+    build:
+      context: .
+      dockerfile: tabnet.Dockerfile
+      ulimits:
+        # fixes some issues when building
+        nofile:
+          soft: 10000
+          hard: 10000
+    container_name: video-challenge-tabnet
+    volumes:
+      - ./data:/data
+      - ./output:/output
+    environment:
+      - INPUT=path/to/input/data
+      - OUTPUT=predictions.csv
