@@ -22,8 +22,8 @@ def adaptive_threshold(data, k=4):
 
 def compute_magnitude(data):
     n_samples, n_channels = data.shape
-    n_sensors = n_channels // 3
-    reshaped = data.reshape(n_samples, n_sensors, 3)
+    n_landmarks = n_channels // 3
+    reshaped = data.reshape(n_samples, n_landmarks, 3)
     mag = np.sqrt(np.sum(reshaped**2, axis=2))
     return mag
 
@@ -263,11 +263,11 @@ def band_power_ratio(freqs: np.ndarray, psd: np.ndarray,
 def axis_correlation(data: np.ndarray):
     """
     Returns:
-        shape (n_sensors, 3)
+        shape (n_landmarks, 3)
         [xy, xz, yz]
     """
-    n_sensors = data.shape[1] // 3
-    reshaped = data.reshape(data.shape[0], n_sensors, 3)
+    n_landmarks = data.shape[1] // 3
+    reshaped = data.reshape(data.shape[0], n_landmarks, 3)
 
     x = reshaped[:, :, 0]
     y = reshaped[:, :, 1]
@@ -339,7 +339,8 @@ def burst_amplitude(data: np.ndarray) -> np.ndarray:
 def rise_fall_ratio(data: np.ndarray) -> np.ndarray:
     """
     Computes log(rise/fall) per channel.
-    Assumes data is already ACC magnitude.
+    
+    Answers thw question: Is acceleration building up faster than it decays?
 
     Args:
         data: shape (n_samples, n_features)
@@ -363,8 +364,8 @@ def spectral_centroid(freqs: np.ndarray, psd: np.ndarray) -> np.ndarray:
     return np.sum(freqs[:, None] * psd, axis=0) / (np.sum(psd, axis=0) + 1e-12)
 
 def tilt_angle_change(data: np.ndarray):
-    n_sensors = data.shape[1] // 3
-    reshaped = data.reshape(data.shape[0], n_sensors, 3)
+    n_landmarks = data.shape[1] // 3
+    reshaped = data.reshape(data.shape[0], n_landmarks, 3)
 
     x = reshaped[:, :, 0]
     y = reshaped[:, :, 1]
@@ -382,12 +383,19 @@ def spectral_rolloff(freqs: np.ndarray, psd: np.ndarray, roll_percent=0.85):
     
     return freqs[idx]
 
-def generate_channel_names(n_channels: int):
-    axes = ["X", "Y", "Z"]
-    names = []
-    n_sensors = n_channels // 3
+def generate_channel_names(n_channels: int, axes=("X", "Y", "Z", "MAG")):
+    """
+    Generates channel labels like:
+    X_0, Y_0, Z_0, MAG_0, X_1, Y_1, ...
+    """
 
-    for i in range(n_sensors):
+    if n_channels % len(axes) != 0:
+        raise ValueError("n_channels must be divisible by number of axes.")
+
+    n_landmarks = n_channels // len(axes)
+    names = []
+
+    for i in range(n_landmarks):
         for axis in axes:
             names.append(f"{axis}_{i}")
 
@@ -400,26 +408,33 @@ def features_to_dataframe(features: dict, n_channels: int) -> pd.DataFrame:
     """
 
     row = {}
-    channel_labels = generate_channel_names(n_channels)
-    n_sensors = n_channels // 3
+
+    axes = ("X", "Y", "Z", "MAG") # ACC axes and magnitude
+    n_axes = len(axes)
+
+    if n_channels % n_axes != 0:
+        raise ValueError("n_channels must be divisible by 4 (X,Y,Z,MAG).")
+
+    n_landmarks = n_channels // n_axes
+    channel_labels = generate_channel_names(n_channels, axes=axes)
 
     for feat_name, values in features.items():
         values = np.asarray(values)
 
-        # ---- Axis-based (per channel)
+        # ---- Per channel (X,Y,Z,MAG)
         if values.shape == (n_channels,):
             for label, val in zip(channel_labels, values):
                 row[f"{feat_name}_{label}"] = val
 
-        # ---- Magnitude-based (per sensor)
-        elif values.shape == (n_sensors,):
+        # ---- Per landmark (e.g., TAC)
+        elif values.shape == (n_landmarks,):
             for i, val in enumerate(values):
-                row[f"{feat_name}_MAG_{i}"] = val
+                row[f"{feat_name}_LMK_{i}"] = val
 
-        # ---- Correlation (n_sensors, 3)
-        elif values.shape == (n_sensors, 3):
+        # ---- Correlation (landmark-level axis relationships)
+        elif values.shape == (n_landmarks, 3):
             corr_labels = ["XY", "XZ", "YZ"]
-            for i in range(n_sensors):
+            for i in range(n_landmarks):
                 for j, corr_label in enumerate(corr_labels):
                     row[f"{feat_name}_{corr_label}_{i}"] = values[i, j]
 
@@ -429,3 +444,49 @@ def features_to_dataframe(features: dict, n_channels: int) -> pd.DataFrame:
             )
 
     return pd.DataFrame([row])
+
+def interleave(d1: np.ndarray, d2: np.ndarray, n: int = 3) -> np.ndarray:
+    """
+    Interleave one column from d2 after every n columns of d1.
+
+    Parameters
+    ----------
+    d1 : np.ndarray (n_samples, n_features)
+        Main data (e.g., X,Y,Z per sensor).
+    d2 : np.ndarray (n_samples, n_insert)
+        Data to insert (e.g., magnitude per sensor).
+    n : int
+        Number of consecutive columns from d1 before inserting one from d2.
+
+    Returns
+    -------
+    np.ndarray
+        Interleaved array.
+    """
+
+    if d1.shape[0] != d2.shape[0]:
+        raise ValueError("d1 and d2 must have equal number of rows.")
+
+    if d1.shape[1] % n != 0:
+        raise ValueError("Number of columns in d1 must be divisible by n.")
+
+    n_landmarks = d1.shape[1] // n
+
+    if d2.shape[1] != n_landmarks:
+        raise ValueError(
+            "d2 must have exactly one column per n columns of d1."
+        )
+
+    n_samples = d1.shape[0]
+
+    # Reshape d1 to (samples, sensors, n)
+    d1_reshaped = d1.reshape(n_samples, n_landmarks, n)
+
+    # Expand d2 to (samples, sensors, 1)
+    d2_expanded = d2[:, :, np.newaxis]
+
+    # Concatenate along last axis → (samples, sensors, n+1)
+    combined = np.concatenate([d1_reshaped, d2_expanded], axis=2)
+
+    # Reshape back to 2D
+    return combined.reshape(n_samples, n_landmarks * (n + 1))
