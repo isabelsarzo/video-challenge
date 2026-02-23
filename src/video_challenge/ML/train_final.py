@@ -1,4 +1,5 @@
 import pickle
+from datetime import datetime
 
 import numpy as np
 import torch
@@ -13,10 +14,14 @@ from . import config as cfg
 from ..feature_extraction.pull_features import pull_features
 from .threshold_classifier import ThresholdedClassifier
 
+t1 = datetime.now()
+
+print("Loading features dataset...")
 features, desc = pull_features(
     dir=cfg.paths["features_dir"],
     labels=cfg.paths["labels_file"]
 )
+print("----- Features loaded successfully!")
 
 X = features.drop(columns=["segment_name", "segment_id", "child_id", "label"])
 y = features["label"].to_numpy()
@@ -48,16 +53,11 @@ tabnet = TabNetClassifier(
     n_independent= 1,
     n_shared= 1,
     lambda_sparse= 0.0003928179923800353,
-    lr= 0.004218844992715255,
+    optimizer_params= {"lr": 0.004218844992715255},
     optimizer_fn= torch.optim.AdamW,
     mask_type= 'entmax',
     device_name='cuda' if torch.cuda.is_available() else 'cpu',
     seed=18,
-    max_epochs= 202,
-    weights=1,
-    batch_size=256,
-    virtual_batch_size=64,
-    drop_last=False,
 )
 
 pipeline_1 = Pipeline(
@@ -78,11 +78,30 @@ pipeline_2 = Pipeline(
     ]
 )
 
+print("Training xgboost...")
 pipeline_1.fit(X, y)
-pipeline_2.fit(X, y)
+print("---- Sucess!")
 
-with open("./models/xgboost.pkl", "wb") as f:
+with open(cfg.paths["final_model_xgboost"], "wb") as f:
     pickle.dump(pipeline_1, f)
+print("---- xgboost model saved")
 
-with open("./models/tabnet.pkl", "wb") as f:
+print("Training tabnet...")
+pipeline_2.fit(
+    X, y,
+    model__max_epochs=202,
+    model__weights=1,
+    model__batch_size=256,
+    model__virtual_batch_size=64,
+    model__drop_last=False,
+)
+print("---- Sucess!")
+
+with open(cfg.paths["final_model_tabnet"], "wb") as f:
     pickle.dump(pipeline_2, f)
+print("---- tabnet model saved")
+
+t2 = datetime.now()
+
+print("-------------------------------------")
+print(f"Process executed in {t2 - t1}")
