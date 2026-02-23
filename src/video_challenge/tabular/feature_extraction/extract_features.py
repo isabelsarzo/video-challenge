@@ -1,8 +1,8 @@
 import pandas as pd
 from pathlib import Path
 from datetime import datetime
-from video_challenge.utils.metadata import list_parquet_files
-from video_challenge.feature_extraction import features as ft
+from video_challenge.tabular.utils.metadata import list_parquet_files
+from video_challenge.tabular.feature_extraction import features as ft
 
 def extract_features(input_dir: Path, output_dir: Path) -> None:
     """

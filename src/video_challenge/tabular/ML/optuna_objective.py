@@ -13,7 +13,7 @@ import torch
 import xgboost as xgb
 from optuna.integration import XGBoostPruningCallback
 
-from src.video_challenge.ML import config as cfg
+from src.video_challenge.tabular.ML import config as cfg
 
 
 # Clear any existing W&B environment variables to avoid conflicts
