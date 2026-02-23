@@ -1,6 +1,6 @@
 import argparse
 from pathlib import Path
-from video_challenge.feature_extraction.extract_features import extract_features
+from video_challenge.tabular.feature_extraction.extract_features import extract_features
 
 def main():
     parser = argparse.ArgumentParser(
