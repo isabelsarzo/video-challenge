@@ -1,6 +1,6 @@
 import pickle
-import argparse
 from pathlib import Path
+import os
 
 import pandas as pd
 
@@ -8,20 +8,27 @@ from video_challenge.preprocessing.preprocess_dir import preprocess_directory_to
 from video_challenge.feature_extraction.extract_features import extract_features
 from video_challenge.feature_extraction.pull_features import pull_features
 
-def run_model_1(input_dir: Path | str, output_csv: Path | str):
-    print("RUNNING MODEL 1...")
-    preprocessed_dir = Path("preprocessed")
-    features_dir = Path("features")
+def run_model_1():
+    # read env variables
+    input_rel_path = os.getenv("INPUT", "")
+    output_rel_path = os.getenv("OUTPUT", "predictions.csv")
 
+    input_dir = Path("/data") / input_rel_path
+    output_csv = Path("/output") / output_rel_path
+
+    # setup internal tmp dirs for preprocessed data and extracted features
+    preprocessed_dir = Path("/tmp/preprocessed")
     preprocessed_dir.mkdir(parents=True, exist_ok=True)
+    features_dir = Path("/tmp/features")
     features_dir.mkdir(parents=True, exist_ok=True)
 
+    # --------------------------
+    #         Run Pipeline
+    # --------------------------
     # -------- 1. preprocess input data
-    print("- Preprocessing data...")
     preprocess_directory_to_parquet(input_dir, preprocessed_dir)
 
     # -------- 2. extract features --------
-    print("- Extracting features...")
     extract_features(preprocessed_dir, features_dir)
 
     # -------- 3. load features  --------
@@ -32,7 +39,6 @@ def run_model_1(input_dir: Path | str, output_csv: Path | str):
 
     # -------- 5. make inferences  --------
     X_test = features.drop(columns=["segment_name", "child_id", "segment_id"])
-    print("- Making infernce...")
     y_pred = pipeline.predict(X_test)
 
     # -------- 6. save predictions in output csv file  --------
@@ -43,27 +49,11 @@ def run_model_1(input_dir: Path | str, output_csv: Path | str):
         "label": y_pred
     })
     output.to_csv(output_csv, index=False)
-    print(f"SUCESS! Saved predictions to {output_csv}")
+
+    print("Pipeline complete. Submission file generated.")
 
 def main():
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument(
-        "--input", 
-        required=True, 
-        type=Path,
-        help="Directory containing input npy files"
-    )
-
-    parser.add_argument(
-        "--output", 
-        required=True, 
-        type=Path,
-        help="Path to output csv file"
-    )
-
-    args = parser.parse_args()
-    run_model_1(args.input, args.output)
+    run_model_1()
 
 if __name__ == "__main__":
     main()

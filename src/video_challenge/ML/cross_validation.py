@@ -38,8 +38,8 @@ SPLITS.mkdir(parents=True, exist_ok=True)
 OPTUNA_DIR = RESULTS / "optuna"
 OPTUNA_DIR.mkdir(parents=True, exist_ok=True)
 optuna_db_file = OPTUNA_DIR / "optuna.db"
-#optuna_storage = f"sqlite:///{optuna_db_file}"
-optuna_storage = "sqlite:///////home/isabelsarzo/video-challenge/results/results_run_2026Feb22-135857/optuna/optuna.db"
+optuna_storage = f"sqlite:///{optuna_db_file}"
+#optuna_storage = "sqlite:///////home/isabelsarzo/video-challenge/results/results_run_2026Feb22-135857/optuna/optuna.db"
 print(f"Results will be saved in: {RESULTS}")
 
 # log config

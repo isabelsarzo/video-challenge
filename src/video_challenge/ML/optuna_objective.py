@@ -32,8 +32,8 @@ def objective(trial, X, y, groups, cv, wandb_dir, model_type="xgboost"):
 
     if model_type == "xgboost":
         params = {
-            "max_depth": trial.suggest_int("max_depth", 4, 10),
-            "min_child_weight": trial.suggest_float("min_child_weight", 3.0, 9.0, log=True),
+            "max_depth": trial.suggest_int("max_depth", 3, 10),
+            "min_child_weight": trial.suggest_float("min_child_weight", 1.0, 9.0, log=True),
             "learning_rate": trial.suggest_float("learning_rate", 1e-3, 0.2, log=True),
             "gamma": trial.suggest_float("gamma", 1e-8, 3.0, log=True),
             "reg_alpha": trial.suggest_float("reg_alpha", 1e-8, 1.0, log=True),

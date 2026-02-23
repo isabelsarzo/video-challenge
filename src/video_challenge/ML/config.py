@@ -4,9 +4,9 @@ from sklearn.metrics import recall_score, precision_score, f1_score, make_scorer
 
 MODEL_TYPE = "tabnet" # "xgboost" or "tabnet"
 
-project_name = f"video-challenge_{MODEL_TYPE}_th"
+project_name = f"video-challenge_{MODEL_TYPE}_final"
 
-n_trials = 1
+n_trials = 200
 
 cv_folds = 5
 
@@ -14,6 +14,8 @@ paths = {
     "results_root": Path("./results"),
     "features_dir": Path("./dataset/features_AXES-MAG"),
     "labels_file": Path("./dataset/data/train_data.csv"),
+    "final_model_xgboost": Path("./models/xgboost.pkl"),
+    "final_model_tabnet": Path("./models/tabnet.pkl"),
 }
 
 scoring = {
