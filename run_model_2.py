@@ -28,7 +28,7 @@ def run_model_2(input_dir: Path | str, output_csv: Path | str):
     features, _ = pull_features(features_dir, labels=None)
 
     # -------- 4. load pipeline  --------
-    pipeline = pickle.load(open("models/tabnet.pkl"), 'rb')
+    pipeline = pickle.load(open("models/tabnet.pkl", 'rb'))
 
     # -------- 5. make inferences  --------
     X_test = features.drop(columns=["segment_name", "child_id", "segment_id"])
