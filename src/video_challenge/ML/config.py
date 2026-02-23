@@ -2,7 +2,7 @@ from pathlib import Path
 import numpy as np
 from sklearn.metrics import recall_score, precision_score, f1_score, make_scorer
 
-MODEL_TYPE = "tabnet" # "xgboost" or "tabnet"
+MODEL_TYPE = "xgboost" # "xgboost" or "tabnet"
 
 project_name = f"video-challenge_{MODEL_TYPE}_th"
 
