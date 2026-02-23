@@ -7,6 +7,7 @@ class ThresholdedClassifier(ClassifierMixin, BaseEstimator):
 
     def fit(self, X, y, **kwargs):
         self.model.fit(X, y, **kwargs)
+        self.is_fitted_ = True # IMPORTANT!!!
         return self
 
     def predict_proba(self, X):
