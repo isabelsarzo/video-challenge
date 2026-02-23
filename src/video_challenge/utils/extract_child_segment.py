@@ -1,5 +1,3 @@
-import os
-
 def parse_segment_name(segment_name: str):
     """
     Parse a segment name of the form:

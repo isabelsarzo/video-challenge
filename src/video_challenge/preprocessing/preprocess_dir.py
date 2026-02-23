@@ -2,9 +2,9 @@ from pathlib import Path
 
 import pandas as pd
 
-from src.video_challenge.tabular.preprocessing.compute_acc import process_single_file
-from src.video_challenge.tabular.utils.extract_child_segment import parse_segment_name
-from src.video_challenge.tabular.utils.check_file_label import get_label
+from src.video_challenge.preprocessing.compute_acc import process_single_file
+from src.video_challenge.utils.extract_child_segment import parse_segment_name
+from src.video_challenge.utils.check_file_label import get_label
 
 
 def preprocess_directory_to_parquet(input_dir, output_dir, fps=30, label_csv_path=None):

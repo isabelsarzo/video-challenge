@@ -4,9 +4,9 @@ from pathlib import Path
 
 import pandas as pd
 
-from video_challenge.tabular.preprocessing.preprocess_dir import preprocess_directory_to_parquet
-from video_challenge.tabular.feature_extraction.extract_features import extract_features
-from video_challenge.tabular.feature_extraction.pull_features import pull_features
+from video_challenge.preprocessing.preprocess_dir import preprocess_directory_to_parquet
+from video_challenge.feature_extraction.extract_features import extract_features
+from video_challenge.feature_extraction.pull_features import pull_features
 
 def run_model_2(input_dir: Path | str, output_csv: Path | str):
     print("RUNNING MODEL 2...")

@@ -2,7 +2,7 @@ import numpy as np
 
 from scipy.signal import savgol_filter
 
-from src.video_challenge.tabular.preprocessing.interpolate import interpolate
+from src.video_challenge.preprocessing.interpolate import interpolate
 
 def process_single_file(file_path, fps=30, window_length=9):
     """
