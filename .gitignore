@@ -11,3 +11,5 @@ wheels/
 
 dataset/
 results/
+models/
+sample_test_set/
