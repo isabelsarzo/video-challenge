@@ -1,6 +1,6 @@
 from sklearn.base import BaseEstimator, ClassifierMixin
 
-class ThresholdedClassifier(BaseEstimator, ClassifierMixin):
+class ThresholdedClassifier(ClassifierMixin, BaseEstimator):
     def __init__(self, model, threshold=0.5):
         self.model = model
         self.threshold = threshold
