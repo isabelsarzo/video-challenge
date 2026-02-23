@@ -1,6 +1,6 @@
 import time
 
-from src.video_challenge.preprocessing.preprocess_dir import (
+from src.video_challenge.tabular.preprocessing.preprocess_dir import (
     preprocess_directory_to_parquet,
 )
 
