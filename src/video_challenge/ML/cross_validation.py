@@ -38,7 +38,8 @@ SPLITS.mkdir(parents=True, exist_ok=True)
 OPTUNA_DIR = RESULTS / "optuna"
 OPTUNA_DIR.mkdir(parents=True, exist_ok=True)
 optuna_db_file = OPTUNA_DIR / "optuna.db"
-optuna_storage = f"sqlite:///{optuna_db_file}"
+#optuna_storage = f"sqlite:///{optuna_db_file}"
+optuna_storage = "sqlite:///////home/isabelsarzo/video-challenge/results/results_run_2026Feb22-135857/optuna/optuna.db"
 print(f"Results will be saved in: {RESULTS}")
 
 # log config
@@ -257,6 +258,27 @@ pipeline = Pipeline(steps=preprocessor.steps + [("model", thresholded_model)])
 
 # get best model and save it
 model_path = RESULTS / f"CV_pipeline_{cfg.MODEL_TYPE}.pkl"
+if cfg.MODEL_TYPE == "xgboost":
+    pipeline.fit( # fit pipeline before saving - IMPORTANT!!!!
+        x_train, 
+        y_train,
+        model__eval_set=[(X_test_transformed, y_true)],
+    )
+if cfg.MODEL_TYPE == "tabnet":
+    pipeline.fit( # fit pipeline before saving - IMPORTANT!!!!
+        x_train, 
+        y_train,
+        model__eval_set=[(X_test_transformed, y_true)],
+        model__eval_name=['test'], 
+        model__eval_metric=['logloss'],
+        model__max_epochs=300, 
+        model__patience=40,
+        model__batch_size=256, 
+        model__virtual_batch_size=64,
+        model__weights=1,
+        model__drop_last=False
+    )
+
 with open(model_path, "wb") as f:
     pickle.dump(pipeline, f)
 

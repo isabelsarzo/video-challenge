@@ -4,9 +4,9 @@ from sklearn.metrics import recall_score, precision_score, f1_score, make_scorer
 
 MODEL_TYPE = "tabnet" # "xgboost" or "tabnet"
 
-project_name = f"video-challenge_{MODEL_TYPE}_th2"
+project_name = f"video-challenge_{MODEL_TYPE}_th"
 
-n_trials = 100
+n_trials = 1
 
 cv_folds = 5
 
